@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CoreGui = game:GetService("CoreGui")
 -- =========================
 -- Local Player & Character
 -- =========================
@@ -27,30 +28,85 @@ local isMobile = UserInputService.TouchEnabled and not UserInputService.Keyboard
 local WindUI = nil
 pcall(
     function()
-        Version = "1.6.53"
-        WindUI =
-            loadstring(
-            game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/" .. Version .. "/main.lua")
-        )()
+
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+local Window = WindUI:CreateWindow({
+    Title = "ERROR HUB",
+    Icon = "rbxassetid://108455308252343", 
+    Author = "",
+    Folder = "ERROR HUB",
+    Size = UDim2.fromOffset(450, 330),
+    Theme = "Violet", 
+    Transparent = true,
+    Resizable = true,
+})
+
+Window:EditOpenButton({ Enabled = false }) 
+
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleBtn = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner") 
+
+ScreenGui.Name = "WindUI_Toggle"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = CoreGui
+
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+ToggleBtn.BackgroundTransparency = 0
+ToggleBtn.Image = "rbxassetid://108455308252343"
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Parent = ScreenGui
+
+UICorner.CornerRadius = UDim.new(0, 12) 
+UICorner.Parent = ToggleBtn
+
+local opened = true
+
+local function toggle()
+    opened = not opened
+    if Window.UI then
+        Window.UI.Enabled = opened
+    else
+        Window:Toggle()
     end
-)
-local Window
-if WindUI then
-    Window =
-        WindUI:CreateWindow(
-        {
-            Title = "rmix 🔫 | 0.1z | Premium  ",
-            Icon = "cloud-lightning",
-            Author = "mo",
-            Folder = "yomo Now",
-            Size = UDim2.fromOffset(400, 200),
-            Theme = "Dark",
-            Transparent = true,
-            Resizable = true,
-            KeyCode = Enum.KeyCode.G
-        }
+end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    ToggleBtn:TweenSize(
+        UDim2.new(0, 56, 0, 56),
+        Enum.EasingDirection.Out,
+        Enum.EasingStyle.Quad,
+        0.12,
+        true,
+        function()
+            ToggleBtn:TweenSize(
+                UDim2.new(0, 50, 0, 50),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quad,
+                0.12,
+                true
+            )
+        end
     )
-else
+    toggle()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        toggle()
+    end
+end)
     Window = {
         Tab = function(_)
             return {
