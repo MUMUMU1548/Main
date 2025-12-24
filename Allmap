@@ -15,7 +15,7 @@ local Window = WindUI:CreateWindow({
     Title = "ERROR HUB",
     Icon = "rbxassetid://108455308252343", 
     Author = "",
-    Folder = "ERROR HUB",
+    Folder = "ERROR HUB [ ALL Map ]",
     Size = UDim2.fromOffset(450, 330),
     Theme = "Violet", 
     Transparent = true,
@@ -94,6 +94,8 @@ local jumpEnabled = false
 local jumpPowerValue = 50
 local jumpLoop = nil
 
+local frontNoclip = false
+local frontLoop
 
 
 local function updateSpeed()
@@ -149,6 +151,45 @@ local function toggleHighJump(on)
     end
 end
 
+
+-- ============
+--  Noclip 
+-- ============
+
+
+local function toggleFrontUnCanCollide(on)
+    frontNoclip = on
+
+    if frontLoop then
+        frontLoop:Disconnect()
+        frontLoop = nil
+    end
+
+    if on then
+        frontLoop = RunService.RenderStepped:Connect(function()
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            -- ยิง Ray ไปข้างหน้า
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {char}
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+            local result = workspace:Raycast(
+                root.Position,
+                root.CFrame.LookVector * 4,
+                rayParams
+            )
+
+            if result and result.Instance and result.Instance:IsA("BasePart") then
+                result.Instance.CanCollide = false
+            end
+        end)
+    end
+end
+
+
 local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
 
 
@@ -197,5 +238,14 @@ MainTab:Slider({
     },
     Callback = function(v)
         jumpPowerValue = tonumber(v) or 50
+    end
+})
+
+MainTab:Toggle({
+    Title = "Noclip",
+    Desc = "ทะลุกำแพง",
+    Default = false,
+    Callback = function(v)
+        toggleFrontUnCanCollide(v)
     end
 })
