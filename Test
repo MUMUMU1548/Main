@@ -1,0 +1,217 @@
+-- Services
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+-- สร้างหน้าต่างหลักธีมม่วง
+local Window = WindUI:CreateWindow({
+    Title = "ERROR HUB",
+    Icon = "rbxassetid://108455308252343", 
+    Author = "",
+    Folder = "ERROR HUB",
+    Size = UDim2.fromOffset(450, 330),
+    Theme = "Violet", 
+    Transparent = true,
+    Resizable = true,
+})
+
+Window:EditOpenButton({ Enabled = false }) 
+
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleBtn = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner") 
+
+ScreenGui.Name = "WindUI_Toggle"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = CoreGui
+
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(138, 43, 226) -- สีม่วงเข้ากับธีม
+ToggleBtn.BackgroundTransparency = 0
+ToggleBtn.Image = "rbxassetid://108455308252343" -- โลโก้
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Parent = ScreenGui
+
+UICorner.CornerRadius = UDim.new(0, 12) 
+UICorner.Parent = ToggleBtn
+
+local opened = true
+
+local function toggle()
+    opened = not opened
+    if Window.UI then
+        Window.UI.Enabled = opened
+    else
+        Window:Toggle()
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    ToggleBtn:TweenSize(
+        UDim2.new(0, 56, 0, 56),
+        Enum.EasingDirection.Out,
+        Enum.EasingStyle.Quad,
+        0.12,
+        true,
+        function()
+            ToggleBtn:TweenSize(
+                UDim2.new(0, 50, 0, 50),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quad,
+                0.12,
+                true
+            )
+        end
+    )
+    toggle()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        toggle()
+    end
+end)
+
+
+
+
+
+
+-- ฟังก์ชันวิ่งเร็วและกระโดดสูงอย่างง่าย
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- ตัวแปรควบคุม
+local humanoid
+local jumpEnabled, jumpValue = false, 100
+local tpWalkEnabled, tpWalkLevel, tpWalkSpeed, tpWalkThread = false, 1, 50, nil
+
+-- อัปเดต Humanoid
+local function updateHumanoid()
+    local char = player.Character
+    if char then 
+        humanoid = char:FindFirstChildOfClass("Humanoid") 
+    end
+end
+
+-- อัปเดตความเร็ววิ่ง
+local function updateTpWalkSpeed()
+    tpWalkSpeed = tpWalkLevel * 50
+end
+
+-- เปิด/ปิดวิ่งเร็ว
+local function toggleTpWalk(on)
+    tpWalkEnabled = on
+    if tpWalkThread then
+        tpWalkThread:Disconnect()
+        tpWalkThread = nil
+    end
+    if on then
+        tpWalkThread = RunService.Heartbeat:Connect(function(dt)
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if not (char and root and hum) then return end
+            
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                root.CFrame = root.CFrame + moveDir * (tpWalkSpeed * dt)
+            end
+        end)
+    end
+end
+
+-- ตั้งค่าเริ่มต้นเมื่อสปอวน์
+local function reapplySettings()
+    task.wait(1.5)
+    updateHumanoid()
+
+    if jumpEnabled and humanoid then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = jumpValue
+    end
+
+    if tpWalkEnabled then 
+        toggleTpWalk(true) 
+    end
+end
+
+-- เชื่อมต่อเมื่อตัวละครเกิด
+player.CharacterAdded:Connect(function(char)
+    humanoid = char:WaitForChild("Humanoid")
+    reapplySettings()
+end)
+
+-- ตั้งค่าเริ่มต้น
+updateHumanoid()
+
+-- ตัวอย่างการใช้งาน (คุณสามารถเอาไปใช้กับ GUI ของคุณเอง):
+-- toggleTpWalk(true)  -- เปิดวิ่งเร็ว
+-- jumpEnabled = true   -- เปิดกระโดดสูง
+-- if humanoid then humanoid.JumpPower = 150 end -- ตั้งค่าความสูง
+
+-- ตั้งค่าความเร็ววิ่งเริ่มต้น
+updateTpWalkSpeed()
+
+-- สร้าง Tab หลัก
+local MainTab = Window:Tab({Title = "MAIN", Icon = "zap"})
+
+-- วิ่งเร็ว
+MainTab:Toggle({
+    Title = "walk speed",
+    Value = false,
+    Callback = function(state)
+        toggleTpWalk(state)
+    end
+})
+
+MainTab:Slider({
+    Title = "Speed",
+    Min = 1,
+    Max = 5,
+    Value = tpWalkLevel,
+    Callback = function(value)
+        tpWalkLevel = value
+        updateTpWalkSpeed()
+    end
+})
+
+-- กระโดดสูง
+MainTab:Toggle({
+    Title = "Jump power",
+    Value = false,
+    Callback = function(state)
+        jumpEnabled = state
+        if humanoid then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = state and jumpValue or 50
+        end
+    end
+})
+
+MainTab:Slider({
+    Title = "Jump Slide",
+    Min = 50,
+    Max = 300,
+    Value = jumpValue,
+    Callback = function(value)
+        jumpValue = value
+        if jumpEnabled and humanoid then
+            humanoid.JumpPower = value
+        end
+    end
+})
+
