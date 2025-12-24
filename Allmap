@@ -82,11 +82,17 @@ end)
 
 
 
--- =======================
--- ERROR HUB : MOVEMENT PACK
--- =======================
+-- ===== WAIT FOR WINDUI READY =====
+repeat task.wait() until Window.UI
+task.wait(0.5)
 
+-- =========================
+-- ERROR HUB MOVEMENT SYSTEM
+-- =========================
+
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 local humanoid, root
@@ -115,7 +121,7 @@ local function toggleTp(on)
     if tpConn then tpConn:Disconnect() end
     if on then
         tpConn = RunService.Heartbeat:Connect(function(dt)
-            if humanoid.MoveDirection.Magnitude > 0 then
+            if humanoid and root and humanoid.MoveDirection.Magnitude > 0 then
                 root.CFrame = root.CFrame + humanoid.MoveDirection * (tpSpeed * dt)
             end
         end)
@@ -143,10 +149,13 @@ local function toggleFly(on)
     fly = on
     if flyConn then flyConn:Disconnect() end
     if on then
-        local bv = Instance.new("BodyVelocity", root)
+        local bv = Instance.new("BodyVelocity")
         bv.MaxForce = Vector3.new(9e9,9e9,9e9)
         bv.Velocity = Vector3.zero
+        bv.Parent = root
+
         flyConn = RunService.Heartbeat:Connect(function()
+            if not root then return end
             local cam = workspace.CurrentCamera
             local dir = Vector3.zero
             if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
@@ -176,23 +185,26 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ===== TAB =====
-local MainTab = Window:Tab({Title="MAIN", Icon="user"})
+-- =========================
+-- CREATE TAB + UI CONTROLS
+-- =========================
 
-MainTab:Toggle({
+local MoveTab = Window:Tab({Title="Movement", Icon="zap"})
+
+MoveTab:Toggle({
     Title="TP Walk",
     Description="🏃 วิ่งทะลุความเร็ว",
     Callback=function(v) toggleTp(v) end
 })
 
-MainTab:Slider({
+MoveTab:Slider({
     Title="TP Speed",
     Description="⚡ ปรับความเร็ว",
     Min=1, Max=5, Value=tpLevel,
     Callback=function(v) tpLevel=v updateTpSpeed() end
 })
 
-MainTab:Toggle({
+MoveTab:Toggle({
     Title="High Jump",
     Description="🦘 กระโดดสูง",
     Callback=function(v)
@@ -202,7 +214,7 @@ MainTab:Toggle({
     end
 })
 
-MainTab:Slider({
+MoveTab:Slider({
     Title="Jump Power",
     Description="📏 ปรับแรงกระโดด",
     Min=50, Max=300, Value=jumpPower,
@@ -212,26 +224,26 @@ MainTab:Slider({
     end
 })
 
-MainTab:Toggle({
+MoveTab:Toggle({
     Title="Infinite Jump",
     Description="♾️ กระโดดไม่จำกัด",
     Callback=function(v) infJump=v end
 })
 
-MainTab:Toggle({
+MoveTab:Toggle({
     Title="Fly",
-    Description="🛸 บินได้",
+    Description="🛸 บิน",
     Callback=function(v) toggleFly(v) end
 })
 
-MainTab:Slider({
+MoveTab:Slider({
     Title="Fly Speed",
     Description="🚀 ความเร็วบิน",
     Min=50, Max=300, Value=flySpeed,
     Callback=function(v) flySpeed=v end
 })
 
-MainTab:Toggle({
+MoveTab:Toggle({
     Title="Noclip",
     Description="👻 ทะลุกำแพง",
     Callback=function(v) noclip=v end
