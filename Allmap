@@ -118,18 +118,23 @@ local function toggleMovement(on)
     end
 end
 
+
 local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
 
+
 MainTab:Toggle({
-    Title = "walk speed",
+    Title = "walk Speed",
+    Desc = "วิ่งไว",
     Default = false,
     Callback = function(v)
         toggleMovement(v)
     end
 })
 
+
 MainTab:Slider({
-    Title = "Speed",
+    Title = "Speed walk",
+    Desc = "ความเร็ว",
     Step = 1,
     Value = {
         Min = 1,
