@@ -98,8 +98,11 @@ local frontLoop
 
 local nameESP = false
 local hpESP = false
-local espObjects = {}
-
+local distESP = false
+local boxESP = false
+local Boxes = {}
+local MAX_DISTANCE = 1500
+local MIN_SIZE = 18
 
 local function updateSpeed()
     speedValue = speedLevel * 60
@@ -208,88 +211,168 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/SUNRTX22/What_happen_
 -- ฟังชั่นในแท็ปesp
 -- ===========
 
-
-
-
-
-local NORMAL_OFFSET = 2
-local PUSH_OFFSET = 3.4 -- ดันขึ้นเมื่อเปิด Name + HP พร้อมกัน
-
-local function getOffset()
-    return (nameESP and hpESP) and PUSH_OFFSET or NORMAL_OFFSET
+local function teamColor(plr)
+    if plr.Team then return plr.TeamColor.Color end
+    return Color3.new(1,1,1)
 end
 
-local function getHPColor(hp,maxhp)
-    local p = hp/maxhp
-    if p > 0.6 then
-        return Color3.fromRGB(0,255,0)
-    elseif p > 0.3 then
-        return Color3.fromRGB(255,255,0)
-    else
-        return Color3.fromRGB(255,0,0)
-    end
+local function hpColor(hp, max)
+    local p = math.clamp(hp/max,0,1)
+    return Color3.fromRGB(255*(1-p),255*p,0)
 end
 
-local function createESP(player)
-    if not (nameESP or hpESP) then return end
-    if player == LocalPlayer then return end
-    local char = player.Character
+function attachBillboard(plr)
+    if plr == LocalPlayer then return end
+
+    local char = plr.Character
     if not char then return end
 
-    local head = char:WaitForChild("Head")
-    local hum = char:WaitForChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
 
-    if head:FindFirstChild("ESP_NameTag") then
-        head.ESP_NameTag:Destroy()
+    if root:FindFirstChild("ESP_UI") then
+        root.ESP_UI:Destroy()
     end
 
-    local gui = Instance.new("BillboardGui", head)
-    gui.Name = "ESP_NameTag"
-    gui.Size = UDim2.new(0,140,0,28)
-    gui.StudsOffset = Vector3.new(0, getOffset(), 0)
+    local gui = Instance.new("BillboardGui", root)
+    gui.Name = "ESP_UI"
+    gui.Size = UDim2.new(0,140,0,54)
+    gui.StudsOffset = Vector3.new(0,2.6,0)
     gui.AlwaysOnTop = true
 
-    local label = Instance.new("TextLabel", gui)
-    label.Size = UDim2.new(1,0,1,0)
-    label.BackgroundTransparency = 1
-    label.TextScaled = true
-    label.Font = Enum.Font.SourceSansBold
-    label.TextStrokeTransparency = 0
+    local layout = Instance.new("UIListLayout", gui)
+    layout.Padding = UDim.new(0,2)
 
-    espObjects[player] = {Gui = gui, Label = label, Hum = hum}
-end
+    local name = Instance.new("TextLabel", gui)
+    name.Size = UDim2.new(1,0,0,18)
+    name.BackgroundTransparency = 1
+    name.TextScaled = true
+    name.Font = Enum.Font.GothamBold
+    name.TextStrokeTransparency = 0.3
 
-RunService.RenderStepped:Connect(function()
-    for p,data in pairs(espObjects) do
-        if data.Hum and data.Hum.Health > 0 then
-            local hp = math.floor(data.Hum.Health)
-            local maxhp = data.Hum.MaxHealth
+    local hp = Instance.new("TextLabel", gui)
+    hp.Size = UDim2.new(1,0,0,16)
+    hp.BackgroundTransparency = 1
+    hp.TextScaled = true
+    hp.Font = Enum.Font.Gotham
+    hp.TextStrokeTransparency = 0.4
 
-            if hpESP then
-                data.Label.Text = p.Name.." [ "..hp.." ]"
-                data.Label.TextColor3 = getHPColor(hp,maxhp)
-            elseif nameESP then
-                data.Label.Text = p.Name
-                data.Label.TextColor3 = p.Team and p.Team.TeamColor.Color or Color3.new(1,1,1)
+    local dist = Instance.new("TextLabel", gui)
+    dist.Size = UDim2.new(1,0,0,16)
+    dist.BackgroundTransparency = 1
+    dist.TextScaled = true
+    dist.Font = Enum.Font.Gotham
+    dist.TextStrokeTransparency = 0.4
+    dist.TextColor3 = Color3.fromRGB(200,200,200)
+
+    RunService.Heartbeat:Connect(function()
+        if not gui.Parent then return end
+
+        name.Visible = nameESP
+        hp.Visible = hpESP
+        dist.Visible = distESP
+
+        if nameESP then
+            name.Text = plr.Name
+            name.TextColor3 = teamColor(plr)
+        end
+
+        if hpESP then
+            local h = math.floor(hum.Health)
+            local m = math.max(1, hum.MaxHealth)
+            hp.Text = "[ "..h.." ]"
+            hp.TextColor3 = hpColor(h,m)
+        end
+
+        if distESP then
+            local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if myRoot then
+                local d = math.floor((myRoot.Position-root.Position).Magnitude)
+                dist.Text = "[ "..d.."m ]"
             end
         end
-        if data.Gui then
-            data.Gui.StudsOffset = Vector3.new(0, getOffset(), 0)
-        end
-    end
-end)
-
-local function setup(p)
-    p.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        createESP(p)
     end)
 end
 
-for _,p in pairs(Players:GetPlayers()) do setup(p) end
-Players.PlayerAdded:Connect(setup)
+for _,p in pairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        p.CharacterAdded:Connect(function() attachBillboard(p) end)
+        if p.Character then attachBillboard(p) end
+    end
+end
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        p.CharacterAdded:Connect(function() attachBillboard(p) end)
+    end
+end)
 
--- ================== TOGGLES ==================
+-- corner
+
+
+
+local function NewLine()
+    local l = Drawing.new("Line")
+    l.Thickness = 2
+    l.Transparency = 1
+    return l
+end
+
+local function CreateBox(plr)
+    local t = {}
+    for i=1,8 do t[i] = NewLine() end
+    Boxes[plr] = t
+end
+
+local function RemoveBox(plr)
+    if Boxes[plr] then
+        for _,v in pairs(Boxes[plr]) do v:Remove() end
+        Boxes[plr] = nil
+    end
+end
+
+for _,v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateBox(v) end end
+Players.PlayerAdded:Connect(function(p) if p ~= LocalPlayer then CreateBox(p) end end)
+Players.PlayerRemoving:Connect(RemoveBox)
+
+RunService.RenderStepped:Connect(function()
+    for plr,lines in pairs(Boxes) do
+        for _,v in pairs(lines) do v.Visible=false end
+        if not boxESP then continue end
+
+        local char = plr.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hrp and hum and hum.Health > 0 then
+            local pos, onscreen = Camera:WorldToViewportPoint(hrp.Position)
+            if onscreen then
+                local scale = math.clamp(1/(pos.Z/35),0.4,5)
+                local w = math.max(40*scale, MIN_SIZE)
+                local h = math.max(60*scale, MIN_SIZE*1.5)
+                local x,y = pos.X - w/2, pos.Y - h/2
+                local c = teamColor(plr)
+                local corner = math.max(10*scale,6)
+
+                local function L(i,x1,y1,x2,y2)
+                    local ln = lines[i]
+                    ln.From = Vector2.new(x1,y1)
+                    ln.To = Vector2.new(x2,y2)
+                    ln.Color = c
+                    ln.Visible = true
+                end
+
+                L(1,x,y,x+corner,y)
+                L(2,x,y,x,y+corner)
+                L(3,x+w,y,x+w-corner,y)
+                L(4,x+w,y,x+w,y+corner)
+                L(5,x,y+h,x+corner,y+h)
+                L(6,x,y+h,x,y+h-corner)
+                L(7,x+w,y+h,x+w-corner,y+h)
+                L(8,x+w,y+h,x+w,y+h-corner)
+            end
+        end
+    end
+end)
 
 
 local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
@@ -384,19 +467,34 @@ MainTab:Slider({
 
 local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
 
-
 ESPTab:Toggle({
-    Title = "Name ESP",
-    Callback = function(v)
+    Title="Name ESP",
+    Callback=function(v)
         nameESP = v
-        for _,p in pairs(Players:GetPlayers()) do createESP(p) end
+        refreshAll()
     end
 })
 
 ESPTab:Toggle({
-    Title = "HP ESP",
-    Callback = function(v)
+    Title="HP ESP",
+    Callback=function(v)
         hpESP = v
-        for _,p in pairs(Players:GetPlayers()) do createESP(p) end
+        refreshAll()
     end
 })
+
+ESPTab:Toggle({
+    Title="Distance ESP",
+    Callback=function(v)
+        distESP = v
+        refreshAll()
+    end
+})
+
+ESPTab:Toggle({
+    Title="Box ESP",
+    Callback=function(v)
+        boxESP = v
+    end
+})
+
