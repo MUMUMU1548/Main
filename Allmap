@@ -11,7 +11,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title = "ERROR HUB",
+    Title = "ERROR HUB [ ALL Map ]",
     Icon = "rbxassetid://108455308252343", 
     Author = "",
     Folder = "ERROR HUB [ ALL Map ]",
@@ -96,8 +96,9 @@ local jumpLoop = nil
 local frontNoclip = false
 local frontLoop
 
-local espEnabled = false
-local espTags = {} 
+local nameESP = false
+local hpESP = false
+local espObjects = {}
 
 
 local function updateSpeed()
@@ -207,68 +208,88 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/SUNRTX22/What_happen_
 -- ฟังชั่นในแท็ปesp
 -- ===========
 
-local function createNameTag(player)
-    if not espEnabled then return end
-    local character = player.Character
-    if not character then return end
-    local head = character:FindFirstChild("Head")
-    if not head then return end
+
+
+
+
+local NORMAL_OFFSET = 2
+local PUSH_OFFSET = 3.4 -- ดันขึ้นเมื่อเปิด Name + HP พร้อมกัน
+
+local function getOffset()
+    return (nameESP and hpESP) and PUSH_OFFSET or NORMAL_OFFSET
+end
+
+local function getHPColor(hp,maxhp)
+    local p = hp/maxhp
+    if p > 0.6 then
+        return Color3.fromRGB(0,255,0)
+    elseif p > 0.3 then
+        return Color3.fromRGB(255,255,0)
+    else
+        return Color3.fromRGB(255,0,0)
+    end
+end
+
+local function createESP(player)
+    if not (nameESP or hpESP) then return end
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
+
+    local head = char:WaitForChild("Head")
+    local hum = char:WaitForChild("Humanoid")
 
     if head:FindFirstChild("ESP_NameTag") then
         head.ESP_NameTag:Destroy()
     end
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_NameTag"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 80, 0, 20)
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- สูงกว่าหัว
-    billboard.AlwaysOnTop = true
+    local gui = Instance.new("BillboardGui", head)
+    gui.Name = "ESP_NameTag"
+    gui.Size = UDim2.new(0,140,0,28)
+    gui.StudsOffset = Vector3.new(0, getOffset(), 0)
+    gui.AlwaysOnTop = true
 
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Parent = billboard
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = player.Name
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
+    local label = Instance.new("TextLabel", gui)
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSansBold
+    label.TextStrokeTransparency = 0
 
-    if player.Team then
-        textLabel.TextColor3 = player.Team.TeamColor.Color
-    else
-        textLabel.TextColor3 = Color3.new(1,1,1)
-    end
-
-    billboard.Parent = head
-    espTags[player] = billboard
+    espObjects[player] = {Gui = gui, Label = label, Hum = hum}
 end
 
-local function removeNameTag(player)
-    if espTags[player] and espTags[player].Parent then
-        espTags[player]:Destroy()
-    end
-    espTags[player] = nil
-end
+RunService.RenderStepped:Connect(function()
+    for p,data in pairs(espObjects) do
+        if data.Hum and data.Hum.Health > 0 then
+            local hp = math.floor(data.Hum.Health)
+            local maxhp = data.Hum.MaxHealth
 
-local function setupPlayer(player)
-    player.CharacterAdded:Connect(function()
-        if espEnabled then
-            createNameTag(player)
+            if hpESP then
+                data.Label.Text = p.Name.." [ "..hp.." ]"
+                data.Label.TextColor3 = getHPColor(hp,maxhp)
+            elseif nameESP then
+                data.Label.Text = p.Name
+                data.Label.TextColor3 = p.Team and p.Team.TeamColor.Color or Color3.new(1,1,1)
+            end
         end
+        if data.Gui then
+            data.Gui.StudsOffset = Vector3.new(0, getOffset(), 0)
+        end
+    end
+end)
+
+local function setup(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        createESP(p)
     end)
-    if player.Character and espEnabled then
-        createNameTag(player)
-    end
 end
 
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        setupPlayer(player)
-    end
-end
+for _,p in pairs(Players:GetPlayers()) do setup(p) end
+Players.PlayerAdded:Connect(setup)
 
-Players.PlayerAdded:Connect(setupPlayer)
-
+-- ================== TOGGLES ==================
 
 
 local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
@@ -366,22 +387,16 @@ local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
 
 ESPTab:Toggle({
     Title = "Name ESP",
-    Desc = "มองชื่อ",
-    Default = false,
-    Callback = function(value)
-        espEnabled = value
-        if espEnabled then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    createNameTag(player)
-                end
-            end
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                removeNameTag(player)
-            end
-        end
+    Callback = function(v)
+        nameESP = v
+        for _,p in pairs(Players:GetPlayers()) do createESP(p) end
     end
 })
 
-
+ESPTab:Toggle({
+    Title = "HP ESP",
+    Callback = function(v)
+        hpESP = v
+        for _,p in pairs(Players:GetPlayers()) do createESP(p) end
+    end
+})
