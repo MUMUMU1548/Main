@@ -1,0 +1,329 @@
+-- ===========================================
+-- ADMIN CONTROLLER (คุณรัน)
+-- ใช้ชื่อผู้เล่นควบคุมได้เลย
+-- ===========================================
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- สร้าง UI ง่ายๆ
+local function CreateControllerUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = game.CoreGui
+    
+    local Main = Instance.new("Frame")
+    Main.Size = UDim2.new(0, 350, 0, 500)
+    Main.Position = UDim2.new(0, 20, 0.5, -250)
+    Main.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    Main.BorderSizePixel = 0
+    Main.Parent = ScreenGui
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 12)
+    Corner.Parent = Main
+    
+    -- Title
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 50)
+    Title.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    Title.Text = "🎮 REMOTE CONTROLLER"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 18
+    Title.Parent = Main
+    
+    local TitleCorner = Instance.new("UICorner")
+    TitleCorner.CornerRadius = UDim.new(0, 12)
+    TitleCorner.Parent = Title
+    
+    -- Player List
+    local PlayerList = Instance.new("ScrollingFrame")
+    PlayerList.Size = UDim2.new(1, -20, 0, 200)
+    PlayerList.Position = UDim2.new(0, 10, 0, 60)
+    PlayerList.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    PlayerList.ScrollBarThickness = 4
+    PlayerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    PlayerList.Parent = Main
+    
+    local ListLayout = Instance.new("UIListLayout")
+    ListLayout.Padding = UDim.new(0, 5)
+    ListLayout.Parent = PlayerList
+    
+    -- Control Buttons
+    local ControlsFrame = Instance.new("Frame")
+    ControlsFrame.Size = UDim2.new(1, -20, 0, 230)
+    ControlsFrame.Position = UDim2.new(0, 10, 0, 270)
+    ControlsFrame.BackgroundTransparency = 1
+    ControlsFrame.Parent = Main
+    
+    -- Selected Player
+    local SelectedPlayer = nil
+    
+    -- Function ส่งคำสั่ง
+    local function SendCommand(playerName, command, ...)
+        local player = Players:FindFirstChild(playerName)
+        if not player then
+            warn("❌ Player not found:", playerName)
+            return
+        end
+        
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("VictimReceiver_" .. playerName)
+        if remote then
+            remote:FireClient(player, command, ...)
+            print("✅ Sent '" .. command .. "' to " .. playerName)
+        else
+            warn("❌ Player not running victim script:", playerName)
+        end
+    end
+    
+    -- Function สร้างปุ่มผู้เล่น
+    local function CreatePlayerButton(player)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 40)
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+        btn.Text = "👤 " .. player.Name
+        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 14
+        btn.Parent = PlayerList
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            SelectedPlayer = player.Name
+            print("Selected:", player.Name)
+            
+            -- Highlight
+            for _, child in pairs(PlayerList:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.BackgroundColor3 = child.Text == btn.Text and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(45, 45, 60)
+                end
+            end
+        end)
+        
+        return btn
+    end
+    
+    -- เพิ่มผู้เล่นที่มีอยู่
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreatePlayerButton(player)
+        end
+    end
+    
+    -- อัพเดทเมื่อมีผู้เล่นใหม่
+    Players.PlayerAdded:Connect(function(player)
+        if player ~= LocalPlayer then
+            CreatePlayerButton(player)
+        end
+    end)
+    
+    -- ลบเมื่อผู้เล่นออก
+    Players.PlayerRemoving:Connect(function(player)
+        for _, child in pairs(PlayerList:GetChildren()) do
+            if child:IsA("TextButton") and child.Text:find(player.Name) then
+                child:Destroy()
+            end
+        end
+    end)
+    
+    -- Control Buttons Grid
+    local Controls = {
+        {"❄️ FREEZE", "freeze"},
+        {"🔥 UNFREEZE", "unfreeze"},
+        {"💀 KILL", "kill"},
+        {"💥 EXPLODE", "explode"},
+        {"👋 SLAP", "slap"},
+        {"📥 BRING", "bring"},
+        {"⚡ SPEED x2", "speed", 32},
+        {"🚶 SPEED x0.5", "speed", 8}
+    }
+    
+    local function CreateControlButton(index, text, command, arg)
+        local row = math.floor((index-1) / 2)
+        local col = (index-1) % 2
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.48, 0, 0, 40)
+        btn.Position = UDim2.new(col * 0.5, col * 10, 0, row * 50)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 13
+        btn.Parent = ControlsFrame
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            if SelectedPlayer then
+                if command == "bring" then
+                    -- Bring มาหาคุณ
+                    local myPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position
+                    if myPos then
+                        SendCommand(SelectedPlayer, command, myPos)
+                    end
+                elseif command == "speed" and arg then
+                    SendCommand(SelectedPlayer, command, arg)
+                else
+                    SendCommand(SelectedPlayer, command)
+                end
+            else
+                warn("⚠️ Please select a player first!")
+            end
+        end)
+        
+        -- Hover effects
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+        end)
+        
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+        end)
+    end
+    
+    for i, control in ipairs(Controls) do
+        CreateControlButton(i, control[1], control[2], control[3])
+    end
+    
+    -- Mass Control Section
+    local MassFrame = Instance.new("Frame")
+    MassFrame.Size = UDim2.new(1, 0, 0, 40)
+    MassFrame.Position = UDim2.new(0, 0, 0, 180)
+    MassFrame.BackgroundTransparency = 1
+    MassFrame.Parent = ControlsFrame
+    
+    local MassLabel = Instance.new("TextLabel")
+    MassLabel.Size = UDim2.new(1, 0, 0, 20)
+    MassLabel.Text = "MASS CONTROLS:"
+    MassLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    MassLabel.Font = Enum.Font.GothamBold
+    MassLabel.TextSize = 12
+    MassLabel.BackgroundTransparency = 1
+    MassLabel.Parent = MassFrame
+    
+    local MassKill = Instance.new("TextButton")
+    MassKill.Size = UDim2.new(0.48, 0, 0, 30)
+    MassKill.Position = UDim2.new(0, 0, 0, 25)
+    MassKill.Text = "💀 KILL ALL"
+    MassKill.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    MassKill.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MassKill.Font = Enum.Font.GothamBold
+    MassKill.TextSize = 12
+    MassKill.Parent = MassFrame
+    
+    local MassFreeze = Instance.new("TextButton")
+    MassFreeze.Size = UDim2.new(0.48, 0, 0, 30)
+    MassFreeze.Position = UDim2.new(0.52, 0, 0, 25)
+    MassFreeze.Text = "❄️ FREEZE ALL"
+    MassFreeze.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+    MassFreeze.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MassFreeze.Font = Enum.Font.GothamBold
+    MassFreeze.TextSize = 12
+    MassFreeze.Parent = MassFrame
+    
+    MassKill.MouseButton1Click:Connect(function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                SendCommand(player.Name, "kill")
+            end
+        end
+        print("☠️ Killed all players")
+    end)
+    
+    MassFreeze.MouseButton1Click:Connect(function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                SendCommand(player.Name, "freeze")
+            end
+        end
+        print("❄️ Froze all players")
+    end)
+    
+    -- Auto-select first player
+    task.wait(1)
+    local firstBtn = PlayerList:FindFirstChildOfClass("TextButton")
+    if firstBtn then
+        firstBtn:MouseButton1Click()
+    end
+    
+    return ScreenGui
+end
+
+-- Start
+print("======================================")
+print("🎮 REMOTE ADMIN CONTROLLER LOADED")
+print("======================================")
+print("Instructions:")
+print("1. Give victim script to friends")
+print("2. Select player from list")
+print("3. Click buttons to control them")
+print("======================================")
+
+-- สร้าง UI
+local UI = CreateControllerUI()
+
+-- Console Commands
+print("\n📢 Console Commands:")
+print("/control [name] - Control specific player")
+print("/freeze [name] - Freeze player")
+print("/kill [name] - Kill player")
+print("/unfreezeall - Unfreeze everyone")
+
+-- Function สำหรับคำสั่ง Console
+local function HandleConsoleCommand(cmd)
+    local args = {}
+    for arg in cmd:gmatch("%S+") do
+        table.insert(args, arg)
+    end
+    
+    if #args > 0 then
+        local command = args[1]:lower()
+        
+        if command == "/control" and args[2] then
+            local player = Players:FindFirstChild(args[2])
+            if player then
+                print("Now controlling:", player.Name)
+            else
+                warn("Player not found:", args[2])
+            end
+            
+        elseif command == "/freeze" and args[2] then
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("VictimReceiver_" .. args[2])
+            if remote then
+                local player = Players:FindFirstChild(args[2])
+                remote:FireClient(player, "freeze")
+                print("Froze:", args[2])
+            end
+            
+        elseif command == "/kill" and args[2] then
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("VictimReceiver_" .. args[2])
+            if remote then
+                local player = Players:FindFirstChild(args[2])
+                remote:FireClient(player, "kill")
+                print("Killed:", args[2])
+            end
+            
+        elseif command == "/unfreezeall" then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("VictimReceiver_" .. player.Name)
+                    if remote then
+                        remote:FireClient(player, "unfreeze")
+                    end
+                end
+            end
+            print("Unfroze everyone")
+        end
+    end
+end
+
+-- Hook console (ถ้า Executor รองรับ)
+if rconsoleprint then
+    rconsoleprint("Type commands above\n")
+end
