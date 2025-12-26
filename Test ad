@@ -1,0 +1,107 @@
+-- ===========================================
+-- VICTIM SCRIPT (เพื่อนรัน)
+-- รันแล้วไม่มีอะไรแสดง
+-- ===========================================
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ตัวแปรเก็บสถานะ
+local IsFrozen = false
+local OriginalWalkSpeed = 16
+local OriginalJumpPower = 50
+
+print("[Victim] Script loaded silently...")
+print("[Victim] My name:", LocalPlayer.Name)
+print("[Victim] Waiting for admin commands...")
+
+-- สร้าง RemoteEvent สำหรับรับคำสั่ง
+local Receiver = Instance.new("RemoteEvent")
+Receiver.Name = "VictimReceiver_" .. LocalPlayer.Name -- ใช้ชื่อแทน ID
+Receiver.Parent = game:GetService("ReplicatedStorage")
+
+-- ฟังก์ชันรับคำสั่ง
+Receiver.OnClientEvent:Connect(function(command, ...)
+    if command == "freeze" then
+        if IsFrozen then return end
+        IsFrozen = true
+        
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            OriginalWalkSpeed = humanoid.WalkSpeed
+            OriginalJumpPower = humanoid.JumpPower
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            
+            -- ล็อกทุกส่วน
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = true
+                end
+            end
+        end
+        
+    elseif command == "unfreeze" then
+        if not IsFrozen then return end
+        IsFrozen = false
+        
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = OriginalWalkSpeed
+            humanoid.JumpPower = OriginalJumpPower
+            
+            -- คลายล็อก
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = false
+                end
+            end
+        end
+        
+    elseif command == "kill" then
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.Health = 0
+        end
+        
+    elseif command == "explode" then
+        if LocalPlayer.Character then
+            local explosion = Instance.new("Explosion")
+            explosion.Position = LocalPlayer.Character.HumanoidRootPart.Position
+            explosion.BlastRadius = 12
+            explosion.BlastPressure = 50000
+            explosion.Parent = workspace
+        end
+        
+    elseif command == "bring" then
+        local targetPos = ...
+        if targetPos and LocalPlayer.Character then
+            LocalPlayer.Character:MoveTo(targetPos)
+        end
+        
+    elseif command == "slap" then
+        if LocalPlayer.Character then
+            local force = Instance.new("BodyVelocity")
+            force.Velocity = Vector3.new(0, 100, 0)
+            force.MaxForce = Vector3.new(0, 100000, 0)
+            force.P = 10000
+            force.Parent = LocalPlayer.Character.HumanoidRootPart
+            
+            task.wait(0.5)
+            force:Destroy()
+        end
+    end
+end)
+
+-- อัพเดทเมื่อสลับตัวละคร
+LocalPlayer.CharacterAdded:Connect(function()
+    if IsFrozen then
+        task.wait(1)
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+        end
+    end
+end)
+
