@@ -98,7 +98,7 @@ local radius = 6
 local trackedParts = {}
 
 local ESPEnabled = false
-
+local ESPHealthEnabled = false
 -- ====
 -- ฟังชั่นต่างๆ
 -- ======
@@ -293,6 +293,95 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(setupPlayer)
 
+-- =========
+-- espเลือก
+-- =======
+
+local function createHealthBar(player)
+    if player == LocalPlayer then return end
+
+    local function onCharacterAdded(character)
+        local head = character:WaitForChild("Head", 5)
+        if not head then return end
+
+        if head:FindFirstChild("HealthBar") then
+            head.HealthBar:Destroy()
+        end
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "HealthBar"
+        billboard.Size = UDim2.new(10, 0, 0.4, 0)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        billboard.MaxDistance = 9999999999999
+        billboard.Parent = head
+
+        local bg = Instance.new("Frame")
+        bg.Size = UDim2.new(1, 0, 1, 0)
+        bg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        bg.BorderSizePixel = 0
+        bg.Parent = billboard
+
+        local bgCorner = Instance.new("UICorner")
+        bgCorner.CornerRadius = UDim.new(0.5, 0)
+        bgCorner.Parent = bg
+
+        local healthBar = Instance.new("Frame")
+        healthBar.Size = UDim2.new(1, 0, 1, 0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        healthBar.BorderSizePixel = 0
+        healthBar.Parent = bg
+
+        local hbCorner = Instance.new("UICorner")
+        hbCorner.CornerRadius = UDim.new(0.5, 0)
+        hbCorner.Parent = healthBar
+
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if humanoid then
+            local conn
+            conn = RunService.RenderStepped:Connect(function()
+                if not character.Parent or not ESPHealthEnabled then
+                    if billboard.Parent then
+                        billboard:Destroy()
+                    end
+                    conn:Disconnect()
+                    return
+                end
+                local ratio = humanoid.Health / humanoid.MaxHealth
+                healthBar.Size = UDim2.new(ratio, 0, 1, 0)
+                if ratio > 0.5 then
+                    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                elseif ratio > 0.2 then
+                    healthBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+                else
+                    healthBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                end
+            end)
+        end
+    end
+
+    player.CharacterAdded:Connect(onCharacterAdded)
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+end
+
+local function setupPlayer(player)
+    player.CharacterAdded:Connect(function()
+        if ESPHealthEnabled then
+            createHealthBar(player)
+        end
+    end)
+    if player.Character and ESPHealthEnabled then
+        createHealthBar(player)
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+Players.PlayerAdded:Connect(setupPlayer)
+
 
 local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
 
@@ -402,5 +491,27 @@ ESPTab:Toggle({
     Callback = function(state)
         ESPEnabled = state
         updateAllESPVisibility()
+    end
+})
+
+
+ESPTab:Toggle({
+    Title = "ESP Health",
+    Desc = "มองเลือด",
+    Default = false,
+    Callback = function(state)
+        ESPHealthEnabled = state
+        for _, player in pairs(Players:GetPlayers()) do
+            if ESPHealthEnabled then
+                createHealthBar(player)
+            else
+                if player.Character and player.Character:FindFirstChild("Head") then
+                    local hb = player.Character.Head:FindFirstChild("HealthBar")
+                    if hb then
+                        hb:Destroy()
+                    end
+                end
+            end
+        end
     end
 })
