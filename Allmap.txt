@@ -515,3 +515,463 @@ ESPTab:Toggle({
         end
     end
 })
+
+local Test2Tab = Window:Tab({Title = "Test2", Icon = "user"})
+
+
+
+-- ใส่โค้ดทั้งหมดนี้ใน Test2Tab
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
+
+-- ตั้งค่าที่นี่
+local OFFSET = Vector3.new(0, 0, -3) -- ระยะที่ให้เขามายืนหน้าเรา
+
+-- รายชื่อผู้เล่นที่ต้องการดึง
+local targetPlayers = {}
+local pullMode = "none"
+local isPulling = false
+
+-- เก็บ Toggle ต่างๆ
+local playerToggles = {}
+local pullAllToggle = nil
+local stopAllToggle = nil
+
+-- ฟังก์ชันพื้นฐาน
+local function addPlayerToTarget(name, state)
+    name = string.lower(string.trim(name))
+    if name == "" then return false end
+    
+    if state then
+        -- เพิ่มชื่อ
+        for _, existingName in ipairs(targetPlayers) do
+            if existingName == name then
+                return false
+            end
+        end
+        table.insert(targetPlayers, name)
+        return true
+    else
+        -- ลบชื่อ
+        for i, existingName in ipairs(targetPlayers) do
+            if existingName == name then
+                table.remove(targetPlayers, i)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function clearTargetPlayers()
+    targetPlayers = {}
+    -- ปิด Toggle ทั้งหมด
+    for playerName, toggle in pairs(playerToggles) do
+        toggle:SetValue(false)
+    end
+end
+
+local function setPullMode(mode, state)
+    if mode == "all" then
+        pullMode = "all"
+        isPulling = state
+    elseif mode == "specific" then
+        pullMode = "specific"
+        isPulling = state and #targetPlayers > 0
+    else
+        pullMode = "none"
+        isPulling = false
+    end
+    
+    if not isPulling then
+        releaseAllPlayers()
+    end
+    
+    return isPulling
+end
+
+local function releaseAllPlayers()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            plr.Character.HumanoidRootPart.Anchored = false
+        end
+    end
+end
+
+local function isPlayerTargeted(player)
+    local playerName = string.lower(player.Name)
+    
+    if pullMode == "all" then
+        return true
+    elseif pullMode == "specific" then
+        for _, targetName in ipairs(targetPlayers) do
+            if targetName == playerName then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Heartbeat สำหรับดึงผู้เล่น
+RunService.Heartbeat:Connect(function()
+    if not isPulling or pullMode == "none" then return end
+    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local myHRP = lp.Character.HumanoidRootPart
+    local pulledCount = 0
+    local angleOffset = 0
+    local angleIncrement = 360 / math.max(Players:GetPlayers() - 1, 1)
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= lp and isPlayerTargeted(plr) then
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = plr.Character.HumanoidRootPart
+                
+                -- ปิดการชน
+                for _, part in ipairs(plr.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+                
+                -- แช่ + หยุดความเร็ว
+                hrp.Anchored = true
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                
+                -- คำนวณตำแหน่ง
+                local offsetAngle = CFrame.Angles(0, math.rad(angleOffset), 0)
+                local positionOffset = offsetAngle:VectorToWorldSpace(OFFSET)
+                
+                -- ดึงมาหน้าเรา
+                hrp.CFrame = myHRP.CFrame * CFrame.new(positionOffset)
+                
+                pulledCount = pulledCount + 1
+                angleOffset = angleOffset + angleIncrement
+            end
+        end
+    end
+end)
+
+-- สร้าง Section สำหรับเลือกผู้เล่น
+local playerSelectionSection = Test2Tab:Section({
+    Title = "เลือกผู้เล่น"
+})
+
+-- Label แสดงจำนวนผู้เล่นที่เลือก
+local selectedCountLabel = Test2Tab:Label({
+    Title = "เลือกผู้เล่น: 0 คน"
+})
+
+local function updateSelectedCount()
+    local count = 0
+    for _, toggle in pairs(playerToggles) do
+        if toggle:GetValue() then
+            count = count + 1
+        end
+    end
+    
+    selectedCountLabel:SetTitle("เลือกผู้เล่น: " .. count .. " คน")
+    return count
+end
+
+-- สร้าง Toggle สำหรับผู้เล่นแต่ละคน
+local function createPlayerToggles()
+    -- ล้าง Toggle เก่า
+    playerToggles = {}
+    
+    -- สร้าง Toggle สำหรับผู้เล่นแต่ละคน
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= lp then
+            local playerName = player.Name
+            
+            local playerToggle = Test2Tab:Toggle({
+                Title = playerName,
+                Desc = "เลือกเพื่อดึงผู้เล่นนี้",
+                Icon = "user",
+                Type = "Checkbox",
+                Value = false,
+                Callback = function(state)
+                    addPlayerToTarget(playerName, state)
+                    
+                    -- อัปเดตสถานะปุ่มดึงตามชื่อ
+                    if pullSpecificToggle then
+                        local hasSelectedPlayers = false
+                        for _, toggle in pairs(playerToggles) do
+                            if toggle:GetValue() then
+                                hasSelectedPlayers = true
+                                break
+                            end
+                        end
+                        
+                        if not hasSelectedPlayers and pullSpecificToggle:GetValue() then
+                            pullSpecificToggle:SetValue(false)
+                            setPullMode("specific", false)
+                        end
+                    end
+                    
+                    updateSelectedCount()
+                end
+            })
+            
+            playerToggles[playerName] = playerToggle
+        end
+    end
+end
+
+-- สร้าง Section สำหรับควบคุมการดึง
+local controlSection = Test2Tab:Section({
+    Title = "ควบคุมการดึง"
+})
+
+-- Toggle ดึงทุกคน
+pullAllToggle = Test2Tab:Toggle({
+    Title = "ดึงทุกคน",
+    Desc = "เปิดเพื่อดึงผู้เล่นทั้งหมดในเซิร์ฟเวอร์",
+    Icon = "users",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        if state then
+            -- ปิด Toggle ดึงตามชื่อถ้ากำลังเปิดอยู่
+            if pullSpecificToggle and pullSpecificToggle:GetValue() then
+                pullSpecificToggle:SetValue(false)
+            end
+            
+            setPullMode("all", true)
+            Test2Tab:Notify({
+                Title = "เริ่มดึงทุกคน",
+                Desc = "กำลังดึงผู้เล่นทั้งหมด...",
+                Length = 3
+            })
+        else
+            setPullMode("all", false)
+            Test2Tab:Notify({
+                Title = "หยุดดึงทุกคน",
+                Desc = "หยุดดึงผู้เล่นทั้งหมดแล้ว",
+                Length = 3
+            })
+        end
+    end
+})
+
+-- Toggle ดึงตามชื่อ
+pullSpecificToggle = Test2Tab:Toggle({
+    Title = "ดึงตามชื่อ",
+    Desc = "เปิดเพื่อดึงเฉพาะผู้เล่นที่เลือก",
+    Icon = "user-check",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        if state then
+            local selectedCount = updateSelectedCount()
+            if selectedCount == 0 then
+                Test2Tab:Notify({
+                    Title = "ข้อผิดพลาด",
+                    Desc = "กรุณาเลือกผู้เล่นก่อน",
+                    Length = 3
+                })
+                pullSpecificToggle:SetValue(false)
+                return
+            end
+            
+            -- ปิด Toggle ดึงทุกคนถ้ากำลังเปิดอยู่
+            if pullAllToggle and pullAllToggle:GetValue() then
+                pullAllToggle:SetValue(false)
+            end
+            
+            setPullMode("specific", true)
+            
+            Test2Tab:Notify({
+                Title = "เริ่มดึงตามชื่อ",
+                Desc = "กำลังดึง " .. selectedCount .. " คน",
+                Length = 3
+            })
+        else
+            setPullMode("specific", false)
+            Test2Tab:Notify({
+                Title = "หยุดดึงตามชื่อ",
+                Desc = "หยุดดึงผู้เล่นที่เลือกแล้ว",
+                Length = 3
+            })
+        end
+    end
+})
+
+-- สร้าง Section สำหรับเครื่องมือ
+local toolsSection = Test2Tab:Section({
+    Title = "เครื่องมือ"
+})
+
+-- ปุ่มรีเฟรชรายชื่อผู้เล่น
+local refreshButton = Test2Tab:Button({
+    Title = "รีเฟรชรายชื่อ",
+    Desc = "อัปเดตรายชื่อผู้เล่นในเซิร์ฟเวอร์",
+    Callback = function()
+        createPlayerToggles()
+        updateSelectedCount()
+        Test2Tab:Notify({
+            Title = "อัปเดตแล้ว",
+            Desc = "อัปเดตรายชื่อผู้เล่นแล้ว",
+            Length = 3
+        })
+    end
+})
+
+-- ปุ่มเลือกทั้งหมด
+local selectAllButton = Test2Tab:Button({
+    Title = "เลือกทั้งหมด",
+    Desc = "เลือกผู้เล่นทั้งหมด",
+    Callback = function()
+        for _, toggle in pairs(playerToggles) do
+            toggle:SetValue(true)
+        end
+        updateSelectedCount()
+        Test2Tab:Notify({
+            Title = "เลือกทั้งหมด",
+            Desc = "เลือกผู้เล่นทั้งหมดแล้ว",
+            Length = 2
+        })
+    end
+})
+
+-- ปุ่มล้างการเลือกทั้งหมด
+local clearAllButton = Test2Tab:Button({
+    Title = "ล้างการเลือก",
+    Desc = "ล้างการเลือกผู้เล่นทั้งหมด",
+    Callback = function()
+        for _, toggle in pairs(playerToggles) do
+            toggle:SetValue(false)
+        end
+        updateSelectedCount()
+        
+        -- ถ้ากำลังดึงตามชื่ออยู่ ให้ปิด
+        if pullSpecificToggle and pullSpecificToggle:GetValue() then
+            pullSpecificToggle:SetValue(false)
+            setPullMode("specific", false)
+        end
+        
+        Test2Tab:Notify({
+            Title = "ล้างการเลือก",
+            Desc = "ล้างการเลือกทั้งหมดแล้ว",
+            Length = 2
+        })
+    end
+})
+
+-- Toggle หยุดดึงทั้งหมด
+stopAllToggle = Test2Tab:Toggle({
+    Title = "หยุดดึงทั้งหมด",
+    Desc = "เปิดเพื่อหยุดการดึงทั้งหมด",
+    Icon = "stop-circle",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state)
+        if state then
+            -- ปิด Toggle อื่นๆ
+            if pullAllToggle and pullAllToggle:GetValue() then
+                pullAllToggle:SetValue(false)
+            end
+            if pullSpecificToggle and pullSpecificToggle:GetValue() then
+                pullSpecificToggle:SetValue(false)
+            end
+            
+            isPulling = false
+            pullMode = "none"
+            releaseAllPlayers()
+            
+            Test2Tab:Notify({
+                Title = "หยุดดึงทั้งหมด",
+                Desc = "หยุดการดึงทั้งหมดแล้ว",
+                Length = 3
+            })
+            
+            -- อัตโนมัติปิด Toggle นี้หลังจาก 1 วินาที
+            task.wait(1)
+            stopAllToggle:SetValue(false)
+        end
+    end
+})
+
+-- สร้าง Section สำหรับตั้งค่า
+local settingsSection = Test2Tab:Section({
+    Title = "ตั้งค่า"
+})
+
+-- Toggle สำหรับเปิด/ปิด CanCollide
+local canCollideToggle = Test2Tab:Toggle({
+    Title = "ปิดการชน",
+    Desc = "ปิดการชนของผู้เล่นที่ถูกดึง",
+    Icon = "shield-off",
+    Type = "Checkbox",
+    Value = true,
+    Callback = function(state)
+        -- สามารถเพิ่มตัวแปรเก็บสถานะได้ถ้าต้องการ
+    end
+})
+
+-- Slider สำหรับปรับระยะห่าง
+local distanceSlider = Test2Tab:Slider({
+    Title = "ระยะห่าง",
+    Desc = "ปรับระยะห่างจากตัวคุณ (ค่า: 1-10)",
+    Icon = "move",
+    Min = 1,
+    Max = 10,
+    Value = 3,
+    Callback = function(value)
+        OFFSET = Vector3.new(0, 0, -value)
+        Test2Tab:Notify({
+            Title = "ตั้งค่าระยะห่าง",
+            Desc = "ตั้งค่าระยะห่างเป็น: " .. value .. " หน่วย",
+            Length = 2
+        })
+    end
+})
+
+-- อัปเดตรายชื่อผู้เล่นอัตโนมัติเมื่อมีผู้เล่นใหม่
+local function onPlayerAdded(player)
+    if player ~= lp then
+        local playerName = player.Name
+        
+        local playerToggle = Test2Tab:Toggle({
+            Title = playerName,
+            Desc = "เลือกเพื่อดึงผู้เล่นนี้",
+            Icon = "user",
+            Type = "Checkbox",
+            Value = false,
+            Callback = function(state)
+                addPlayerToTarget(playerName, state)
+                updateSelectedCount()
+            end
+        })
+        
+        playerToggles[playerName] = playerToggle
+        updateSelectedCount()
+    end
+end
+
+local function onPlayerRemoving(player)
+    if playerToggles[player.Name] then
+        playerToggles[player.Name] = nil
+        addPlayerToTarget(player.Name, false)
+        updateSelectedCount()
+    end
+end
+
+-- ตั้งค่า event listeners
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+-- สร้าง Toggle เริ่มต้น
+createPlayerToggles()
+updateSelectedCount()
+
+-- แสดงสถานะเริ่มต้น
+Test2Tab:Notify({
+    Title = "ระบบดึงผู้เล่น",
+    Desc = "พร้อมใช้งานในแท็บ Test2",
+    Length = 3
+})
