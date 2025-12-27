@@ -1,0 +1,324 @@
+-- Services
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
+local Window = WindUI:CreateWindow({
+    Title = "ERROR HUB [ ALL Map ]",
+    Icon = "rbxassetid://108455308252343", 
+    Author = "",
+    Folder = "ERROR HUB [ ALL Map ]",
+    Size = UDim2.fromOffset(450, 330),
+    Theme = "Violet", 
+    Transparent = true,
+    Resizable = true,
+})
+
+Window:EditOpenButton({ Enabled = false }) 
+
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleBtn = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner") 
+
+ScreenGui.Name = "ERROR HUB"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = CoreGui
+
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+ToggleBtn.BackgroundTransparency = 0
+ToggleBtn.Image = "rbxassetid://108455308252343"
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Parent = ScreenGui
+
+UICorner.CornerRadius = UDim.new(0, 12) 
+UICorner.Parent = ToggleBtn
+
+local opened = true
+
+local function toggle()
+    opened = not opened
+    if Window.UI then
+        Window.UI.Enabled = opened
+    else
+        Window:Toggle()
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    ToggleBtn:TweenSize(
+        UDim2.new(0, 56, 0, 56),
+        Enum.EasingDirection.Out,
+        Enum.EasingStyle.Quad,
+        0.12,
+        true,
+        function()
+            ToggleBtn:TweenSize(
+                UDim2.new(0, 50, 0, 50),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quad,
+                0.12,
+                true
+            )
+        end
+    )
+    toggle()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        toggle()
+    end
+end)
+
+
+
+-- ตัวแปร
+local enabled = false
+local speedLevel = 1
+local speedValue = 60
+local loopConnection = nil
+
+local jumpEnabled = false
+local jumpPowerValue = 50
+local jumpLoop = nil
+
+local frontNoclip = false
+local radius = 6
+local trackedParts = {}
+
+
+-- ====
+-- ฟังชั่นต่างๆ
+-- ======
+
+local function updateSpeed()
+    speedValue = speedLevel * 60
+end
+updateSpeed()
+
+local function toggleMovement(on)
+    enabled = on
+
+    if loopConnection then
+        loopConnection:Disconnect()
+        loopConnection = nil
+    end
+
+    if on then
+        loopConnection = RunService.Heartbeat:Connect(function(dt)
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if not (char and root and hum) then return end
+
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                root.CFrame = root.CFrame + moveDir * (speedValue * dt)
+            end
+        end)
+    end
+end
+
+
+-- ============
+-- ฟังชั่นกระโดดสูง
+-- ============
+
+local function toggleHighJump(on)
+    jumpEnabled = on
+
+    if jumpLoop then
+        jumpLoop:Disconnect()
+        jumpLoop = nil
+    end
+
+    if on then
+        jumpLoop = RunService.Heartbeat:Connect(function()
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.UseJumpPower = true
+                hum.JumpPower = jumpPowerValue
+            end
+        end)
+    end
+end
+
+
+-- ============
+--  Noclip 
+-- ============
+
+
+local function applyNoclip()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local parts = workspace:GetPartBoundsInRadius(root.Position, radius)
+    local currentParts = {}
+
+    for _, part in pairs(parts) do
+        if part:IsA("BasePart") and part ~= root then
+            local underFoot = part.Position.Y + part.Size.Y/2 < root.Position.Y
+            if not underFoot then
+                part.CanCollide = false
+                trackedParts[part] = true
+                currentParts[part] = true
+            end
+        end
+    end
+
+    for part,_ in pairs(trackedParts) do
+        if not currentParts[part] then
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+            trackedParts[part] = nil
+        end
+    end
+end
+
+-- Loop ตรวจทุก ~0.12 วินาที
+local accumulator = 0
+RunService.RenderStepped:Connect(function(dt)
+    if not frontNoclip then return end
+    accumulator = accumulator + dt
+    if accumulator >= 0.12 then
+        applyNoclip()
+        accumulator = 0
+    end
+end)
+
+
+-- ========
+-- fly bypass 
+-- ==========
+
+local API_Bypass = getgenv()
+API_Bypass["_CR.DayToDay2044_Fly"] = API_Bypass["_CR.DayToDay2044_Fly"] or false
+API_Bypass["_CR.DayToDay2044_Speed"] = API_Bypass["_CR.DayToDay2044_Speed"] or 100
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/SUNRTX22/What_happen_dafak/refs/heads/main/Fly_API"))()
+
+
+
+-- ========
+-- ฟังชั่นในแท็ปesp
+-- ===========
+
+
+
+local MainTab = Window:Tab({Title = "MAIN", Icon = "user"})
+
+
+MainTab:Toggle({
+    Title = "walk Speed",
+    Desc = "วิ่งไว",
+    Default = false,
+    Callback = function(v)
+        toggleMovement(v)
+    end
+})
+
+
+MainTab:Slider({
+    Title = "Speed walk",
+    Desc = "ความเร็ว",
+    Step = 1,
+    Value = {
+        Min = 1,
+        Max = 5,
+        Default = 1
+    },
+    Callback = function(v)
+        speedLevel = tonumber(v) or 1
+        updateSpeed()
+    end
+})
+
+MainTab:Toggle({
+    Title = "Jump power",
+    Desc = "โดดสูง",
+    Default = false,
+    Callback = function(v)
+        toggleHighJump(v)
+    end
+})
+
+MainTab:Slider({
+    Title = "Jump Slider",
+    Desc = "ปรับความสูงการกระโดด",
+    Step = 5,
+    Value = {
+        Min = 50,
+        Max = 500,
+        Default = 50
+    },
+    Callback = function(v)
+        jumpPowerValue = tonumber(v) or 50
+    end
+})
+
+MainTab:Toggle({
+    Title = "Noclip",
+    Desc = "ทะลุกำแพง",
+    Callback = function(state)
+        frontNoclip = state
+        if not frontNoclip then
+            -- คืนค่า CanCollide ให้ทุกพาร์ทที่ถูกปรับ
+            for part,_ in pairs(trackedParts) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+            trackedParts = {}
+        end
+    end
+})
+
+
+
+MainTab:Toggle({
+    Title = "Bypass Fly",
+    Desc = "บินแบบบายพาส",
+    Default = API_Bypass["_CR.DayToDay2044_Fly"],
+    Callback = function(v)
+        API_Bypass["_CR.DayToDay2044_Fly"] = v
+    end
+})
+
+MainTab:Slider({
+    Title = "Fly Speed",
+    Desc = "ความเร็วในการบิน",
+    Step = 1,
+    Value = {
+        Min = 1,
+        Max = 500,
+        Default = API_Bypass["_CR.DayToDay2044_Speed"]
+    },
+    Callback = function(v)
+        API_Bypass["_CR.DayToDay2044_Speed"] = tonumber(v) or 100
+    end
+})
+
+
+
+-- ========
+-- Esptab
+-- =========
+
+local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
+
+
