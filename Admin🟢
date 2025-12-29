@@ -2,7 +2,6 @@
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local Debris = game:GetService("Debris")
-local RunService = game:GetService("RunService")
 
 local lp = Players.LocalPlayer
 local MY_NAME = lp.Name
@@ -26,75 +25,19 @@ local function isAllowed(senderName)
     return WHITELIST[senderName] == true
 end
 
--- ===== FLAGS =====
-local IgnoreCommands = false -- ใช้ชั่วคราวตอนทำคำสั่ง
-local AntiDeath = true
-local AntiVelocity = true
-
--- ===== LOCAL SCRIPT PLAYER OVERRIDE =====
-local function setupLocalPlayer()
-    local char = getChar()
-    local hum = char:WaitForChild("Humanoid",5)
-    local hrp = char:WaitForChild("HumanoidRootPart",5)
-    if not hum or not hrp then return end
-
-    hum.WalkSpeed = 16
-    hum.JumpPower = 50
-    hum.AutoRotate = true
-    hum.PlatformStand = false
-    hum.Sit = false
-
-    hum.HealthChanged:Connect(function(h)
-        if AntiDeath and not IgnoreCommands and h <= 0 then
-            hum.Health = 100
-        end
-    end)
-
-    RunService.Stepped:Connect(function()
-        if AntiVelocity and not IgnoreCommands then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end
-    end)
-
-    for _,v in ipairs(hrp:GetDescendants()) do
-        if (v:IsA("BodyMover") or v:IsA("BodyVelocity") or v:IsA("BodyGyro") or v:IsA("BodyPosition") 
-            or v:IsA("LinearVelocity") or v:IsA("AngularVelocity")) and not v:FindFirstChild("CMD_TAG") then
-            v:Destroy()
-        end
-    end
-
-    pcall(function()
-        local pm = require(lp.PlayerScripts:WaitForChild("PlayerModule"))
-        pm:GetControls():Enable()
-    end)
-end
-
-setupLocalPlayer()
-lp.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    setupLocalPlayer()
-end)
-
 -- ===== COMMAND ACTIONS =====
 local function killMe()
-    IgnoreCommands = true
     local h = getChar():FindFirstChildOfClass("Humanoid")
     if h then h.Health = 0 end
-    task.wait(0.1)
-    IgnoreCommands = false
 end
 
 local function bringMe(senderName)
-    IgnoreCommands = true
     local s = Players:FindFirstChild(senderName)
     local c = getChar()
     local hrp = c:FindFirstChild("HumanoidRootPart")
     if s and s.Character and hrp and s.Character:FindFirstChild("HumanoidRootPart") then
         hrp.CFrame = s.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-3)
     end
-    task.wait(0.1)
-    IgnoreCommands = false
 end
 
 local function freezeMe()
