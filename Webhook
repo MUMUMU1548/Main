@@ -1,0 +1,58 @@
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1455109767600148646/MqknCvom33KABPOLgqPq7dWD6lirRwogU7ZYySTg6vqVwglwptBa6hozt9tZi1qVsxIY"
+
+local HttpService = game:GetService("HttpService")
+local Marketplace = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+
+local plr = Players.LocalPlayer
+
+-- ===== ข้อมูลบอท =====
+local BOT_NAME = "Seesa" -- ชื่อบอท
+local BOT_AVATAR = "https://cdn.discordapp.com/attachments/1455090922227503130/1455118745960845435/Screenshot_2025-12-19-23-59-09-03_f69139cffc4d135a71392e13634f144a.jpg" -- รูปบอท
+
+-- ดึงรูปแมพ (รูปตัว Roblox)
+local mapApi = "https://thumbnails.roblox.com/v1/users/avatar?userIds=" ..
+    plr.UserId .. "&size=420x420&format=Png&isCircular=false" -- ใช้รูปตัว Roblox ของผู้เล่น
+local mapResponse = game:HttpGet(mapApi)
+local mapJson = HttpService:JSONDecode(mapResponse)
+local mapThumbnail = mapJson.data[1].imageUrl or ""
+
+-- ดึงชื่อแมพและลิงก์
+local placeId = game.PlaceId
+local placeName = Marketplace:GetProductInfo(placeId).Name
+local placeLink = "https://www.roblox.com/games/"..placeId
+
+-- เวลาประเทศไทย
+local function GetThaiTimestamp()
+    local time = os.date("!*t")
+    time.hour = (time.hour + 7) % 24
+    return string.format("%02d-%02d-%02d %02d:%02d:%02d", time.day, time.month, time.year, time.hour, time.min, time.sec)
+end
+local timestamp = GetThaiTimestamp()
+
+-- สร้าง Embed
+local data = {
+    username = BOT_NAME,
+    avatar_url = BOT_AVATAR,
+    embeds = {{
+        title = "📍 Player Joined",
+        color = 3447003,
+        thumbnail = { url = BOT_AVATAR },   -- ใช้รูปบอท
+        image = { url = mapThumbnail },     -- รูปตัว Roblox
+        fields = {
+            { name = "👤 Player", value = plr.Name, inline = true },
+            { name = "🗺 Map", value = "["..placeName.."]("..placeLink..")", inline = true },
+            { name = "🆔 JobId", value = tostring(game.JobId), inline = true },
+            { name = "⏱ Time (TH)", value = timestamp, inline = true }
+        }
+    }}
+}
+
+local body = HttpService:JSONEncode(data)
+
+request({
+    Url = WEBHOOK_URL,
+    Method = "POST",
+    Headers = { ["Content-Type"] = "application/json" },
+    Body = body
+})
