@@ -124,13 +124,10 @@ local SilentAimEnabled = false
 local SilentAimAttachEnabled = false
 local GoodGunEnabled = false
 local FOVRadius = 120
+local ShowFOV = true 
 local CurrentTarget = nil
 local SilentFOVCircle = nil
-local Tracer = Drawing.new("Line")
-Tracer.Thickness = 1
-Tracer.Color = Color3.fromRGB(255, 50, 50)
-Tracer.Transparency = 1
-Tracer.Visible = false
+local tracerLine, targetDot 
 -- ESP
 local espPlayers = {}
 local boxESPEnabled = false
