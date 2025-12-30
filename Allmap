@@ -541,44 +541,48 @@ MainTab:Slider({
 
 local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
 
-ESPTab:Toggle({
-    Title = "Health ESP",
-    Desc = "มองเลือด",
-    Value = false,
-    Callback = function(s)
-        HEALTH_ENABLED = s
-        if s then
-            for _,p in ipairs(Players:GetPlayers()) do HealthESP_Create(p) end
-        else
-            for p in pairs(HealthESP) do HealthESP_Remove(p) end
+task.spawn(function()
+    task.wait(0.15) -- รอ UI สร้างให้เสร็จ
+    ESPTab:Toggle({
+        Title = "Health ESP",
+        Desc = "มองเลือด",
+        Value = false,
+        Callback = function(s) …
         end
-    end
-})
+    })
+    ESPTab:Toggle({
+        Title = "Name ESP",
+        Desc = "มองชื่อ",
+        Value = false,
+        Callback = function(s) …
+        end
+    })
+    ESPTab:Toggle({
+        Title = "Distance ESP",
+        Desc = "มองระยะ",
+        Value = false,
+        Callback = function(s) …
+        end
+    })
+end)
 
-ESPTab:Toggle({
-    Title = "Name ESP",
-    Desc = "มองชื่อ",
-    Value = false,
-    Callback = function(s)
-        NAME_ENABLED = s
-        if s then
-            for _,p in ipairs(Players:GetPlayers()) do NameESP_Create(p) end
-        else
-            for p in pairs(NameESP) do NameESP_Remove(p) end
-        end
+RunService.RenderStepped:Connect(function()
+    for _,p in ipairs(Players:GetPlayers()) do
+        if HEALTH_ENABLED then HealthESP_Update(p) end
+        if NAME_ENABLED then NameESP_Update(p) end
+        if DIST_ENABLED then DistESP_Update(p) end
+        UpdateESPStack(p)
     end
-})
+end)
 
-ESPTab:Toggle({
-    Title = "Distance ESP",
-    Desc = "มองระยะ",
-    Value = false,
-    Callback = function(s)
-        DIST_ENABLED = s
-        if s then
-            for _,p in ipairs(Players:GetPlayers()) do DistESP_Create(p) end
-        else
-            for p in pairs(DistESP) do DistESP_Remove(p) end
-        end
-    end
-})
+Players.PlayerAdded:Connect(function(p)
+    if HEALTH_ENABLED then HealthESP_Create(p) end
+    if NAME_ENABLED then NameESP_Create(p) end
+    if DIST_ENABLED then DistESP_Create(p) end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    HealthESP_Remove(p)
+    NameESP_Remove(p)
+    DistESP_Remove(p)
+end)
