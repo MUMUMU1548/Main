@@ -565,21 +565,21 @@ local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
         Title = "Health ESP",
         Desc = "มองเลือด",
         Value = false,
-        Callback = function(s) …
+        Callback = function(p) …
         end
     })
     ESPTab:Toggle({
         Title = "Name ESP",
         Desc = "มองชื่อ",
         Value = false,
-        Callback = function(s) …
+        Callback = function(p) …
         end
     })
     ESPTab:Toggle({
         Title = "Distance ESP",
         Desc = "มองระยะ",
         Value = false,
-        Callback = function(s) …
+        Callback = function(p) …
         end
     })
 end)
