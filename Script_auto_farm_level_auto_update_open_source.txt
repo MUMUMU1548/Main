@@ -8,13 +8,13 @@ end
 _G.Settings = {
 
 	Main = {
-		["Auto Farm Level"] = false,
-		["Fast Auto Farm Level"] = false,
+		["Auto Farm Level"] = true,
+		["Fast Auto Farm Level"] = true,
 
 		--[Mob Aura]
 
 		["Distance Mob Aura"] = 1000, -- {Max : 5000} 
-		["Mob Aura"] = false,
+		["Mob Aura"] = true,
 
 		--[World 1]
 		["Auto New World"] = false,
